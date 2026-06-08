@@ -1,7 +1,16 @@
+'use client';
+
+import { useSession } from '../lib/session';
+import Toolbar from '../components/Toolbar';
+import Viewport from '../components/Viewport';
+
 export default function Home() {
+  const session = useSession();
+
   return (
-    <main className="flex flex-1 items-center justify-center">
-      <p>Remote Browser Control</p>
+    <main className="page">
+      <Toolbar session={session} />
+      <Viewport session={session} />
     </main>
   );
 }
