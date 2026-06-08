@@ -7,6 +7,9 @@ WORKDIR /app
 COPY package.json pnpm-lock.yaml ./
 RUN pnpm install --frozen-lockfile
 
+ARG NEXT_PUBLIC_SERVER_URL=http://localhost:4000
+ENV NEXT_PUBLIC_SERVER_URL=$NEXT_PUBLIC_SERVER_URL
+
 COPY . .
 RUN pnpm build
 
