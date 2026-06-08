@@ -4,6 +4,7 @@ import { createServer } from 'http';
 import * as manager from './docker/manager.js';
 import * as store from './sessions/store.js';
 import sessionRoutes from './routes/sessions.js';
+import { attach } from './ws/proxy.js';
 import config from './config.js';
 
 const app = express();
@@ -28,6 +29,7 @@ process.on('SIGINT', shutdown);
 async function start(): Promise<void> {
   await manager.reap();
   await manager.ensureNetwork();
+  attach(server);
 
   server.listen(config.serverPort, () => {
     console.log(`server listening on port ${config.serverPort}`);
