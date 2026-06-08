@@ -2,15 +2,27 @@
   "name": "rbc-server",
   "version": "1.0.0",
   "description": "Orchestrator: manages browser containers and proxies WebSocket sessions",
-  "main": "src/index.js",
+  "type": "module",
+  "main": "src/index.ts",
   "scripts": {
-    "start": "node src/index.js"
+    "start": "tsx src/index.ts",
+    "dev": "tsx watch src/index.ts",
+    "typecheck": "tsc --noEmit"
   },
   "dependencies": {
     "cors": "^2.8.5",
     "dockerode": "^4.0.2",
-    "express": "^4.18.2",
-    "nanoid": "^3.3.7",
-    "ws": "^8.16.0"
+    "express": "^4.21.1",
+    "nanoid": "^5.0.9",
+    "tsx": "^4.19.2",
+    "ws": "^8.18.0"
+  },
+  "devDependencies": {
+    "@types/cors": "^2.8.17",
+    "@types/dockerode": "^3.3.31",
+    "@types/express": "^4.17.21",
+    "@types/node": "^20.16.0",
+    "@types/ws": "^8.5.13",
+    "typescript": "^5.6.0"
   }
 }

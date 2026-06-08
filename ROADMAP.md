@@ -27,8 +27,11 @@ These rules are for whoever builds this, human or model.
    empty, scaffold into a brand-new temp directory and move the contents in.
 5. Use non-interactive flags for every command so nothing hangs waiting on a
    prompt.
-6. Commit at the end of each phase with a plain message. Small, honest commits.
-7. Follow the code standards in section G at all times, not as a cleanup pass.
+6. TypeScript and pnpm everywhere. All three packages are TypeScript. agent and
+   server run with tsx (no separate compile step), ESM, strict mode. The package
+   manager is pnpm in every package and every Dockerfile.
+7. Commit at the end of each phase with a plain message. Small, honest commits.
+8. Follow the code standards in section G at all times, not as a cleanup pass.
 
 ---
 
@@ -94,6 +97,9 @@ disconnect, the server removes the container.
 6. Next.js (App Router) for the UI to match the stack; Express for the backend.
    Realtime goes through the Express WS server, not Next.js API routes, which do
    not handle raw WebSockets cleanly.
+7. TypeScript across all three packages so the wire protocol is typed once and
+   shared, and the seams (agent <-> server <-> web) are checked, not discovered
+   at runtime.
 
 ---
 
@@ -104,24 +110,26 @@ bld-submission/
   agent/
     Dockerfile
     package.json
+    tsconfig.json
     src/
-      index.js          entrypoint: launch browser, start WS server
-      browser.js        puppeteer-core launch + viewport + page handle
-      screencast.js     start/stop screencast, emit frames, ack frames
-      input.js          map protocol messages -> input dispatch
-      server.js         WS server, wires a client to the browser
-      config.js         viewport, jpeg quality, port from env
+      index.ts          entrypoint: launch browser, start WS server
+      browser.ts        puppeteer-core launch + viewport + page handle
+      screencast.ts     start/stop screencast, emit frames, ack frames
+      input.ts          map protocol messages -> input dispatch
+      server.ts         WS server, wires a client to the browser
+      config.ts         viewport, jpeg quality, port from env
   server/
     Dockerfile
     package.json
+    tsconfig.json
     src/
-      index.js          express app + http server + ws upgrade
-      config.js         ports, image name, network name, timeouts
-      docker/manager.js dockerode: ensure network, run/stop/remove, reap
-      sessions/store.js in-memory session registry
-      routes/sessions.js  POST / DELETE / GET sessions
-      ws/proxy.js       frontend ws <-> agent ws relay with retry
-  web/                  created by create-next-app, then trimmed
+      index.ts          express app + http server + ws upgrade
+      config.ts         ports, image name, network name, timeouts
+      docker/manager.ts dockerode: ensure network, run/stop/remove, reap
+      sessions/store.ts in-memory session registry
+      routes/sessions.ts  POST / DELETE / GET sessions
+      ws/proxy.ts       frontend ws <-> agent ws relay with retry
+  web/                  created by create-next-app, then trimmed (TS, pnpm)
     Dockerfile
     app/page.tsx, app/layout.tsx
     components/Viewport.tsx, components/Toolbar.tsx
@@ -137,7 +145,7 @@ bld-submission/
 
 ---
 
-## E. Wire protocol (mirror on both ends)
+## E. Wire protocol (one shared TypeScript type, mirrored on both ends)
 
 One WebSocket per session.
 
@@ -158,6 +166,9 @@ Control, UI -> agent (text JSON):
 Coordinates are always in viewport pixels (the fixed 1280x720 space). The UI
 scales screen coordinates into that space; the agent never scales.
 
+The agent and server share these as discriminated unions in TypeScript; web keeps
+a matching copy in lib/protocol.ts.
+
 ---
 
 ## F. Phases as micro-steps
@@ -174,28 +185,34 @@ Do not start a phase until the previous phase passed its final check.
     JPEG_QUALITY=70, AGENT_PORT=8080, SERVER_PORT=4000, WEB_PORT=3000,
     AGENT_IMAGE=rbc-browser-agent:latest, NETWORK_NAME=rbc-net.
     Check: file exists.
-0.3 Create the `agent/` tree by hand: `agent/package.json` (deps:
-    puppeteer-core, ws), and empty `agent/src/*.js` files from section D with a
-    one-line export stub each.
-    Check: `ls agent/src` shows all six files.
-0.4 Create the `server/` tree by hand: `server/package.json` (deps: express,
-    cors, ws, dockerode, nanoid), and the empty `server/src` files from section D.
-    Check: `ls -R server/src` shows the structure.
+0.3 Create the `agent/` tree: `agent/package.json` (type module; deps
+    puppeteer-core, ws, tsx; devDeps typescript, @types/node, @types/ws; scripts
+    start/dev/typecheck), `agent/tsconfig.json` (ES2022, ESNext, Bundler
+    resolution, strict, noEmit), and empty `agent/src/*.ts` files from section D
+    with `export {};` each. Generate the lockfile with `pnpm install`.
+    Check: `ls agent/src` shows all six .ts files; pnpm-lock.yaml exists.
+0.4 Create the `server/` tree: `server/package.json` (type module; deps express,
+    cors, ws, dockerode, nanoid, tsx; devDeps typescript, @types/node,
+    @types/express, @types/cors, @types/ws, @types/dockerode), `tsconfig.json`,
+    and the empty `server/src` .ts files from section D. Generate the lockfile
+    with `pnpm install`.
+    Check: `ls -R server/src` shows the structure; pnpm-lock.yaml exists.
 0.5 Create `web/` with the scaffolder, into the subdirectory only, never the root:
-    `npx --yes create-next-app@latest web --ts --app --eslint --no-src-dir --use-npm --no-import-alias --no-turbopack`.
+    `npx --yes create-next-app@latest web --ts --app --eslint --no-src-dir --use-pnpm --no-import-alias --no-turbopack`.
     If it refuses for any reason, scaffold into `web-tmp`, then move its contents
-    into `web/` and delete `web-tmp`.
+    into `web/` and delete `web-tmp`. Remove the nested .git it creates.
     Check: `web/app/page.tsx` and `web/package.json` exist.
 0.6 Remove create-next-app boilerplate not needed: demo styles, sample assets,
     placeholder content in page.tsx. Leave a minimal layout and an empty page.
     Check: page renders nothing decorative.
 0.7 Write `agent/Dockerfile` (node:20-bookworm-slim; apt-get install chromium and
-    fonts; PUPPETEER_SKIP_DOWNLOAD=true; copy package files; npm ci; copy src;
-    CMD node src/index.js).
+    fonts; PUPPETEER_SKIP_DOWNLOAD=true; install pnpm; pnpm install
+    --frozen-lockfile --prod; copy tsconfig and src; CMD pnpm start, which runs
+    tsx src/index.ts).
     Check: `docker build -t rbc-browser-agent:latest ./agent` succeeds.
-0.8 Write `server/Dockerfile` (node:20-bookworm-slim; npm ci; copy src; CMD node
-    src/index.js) and `web/Dockerfile` (node:20-bookworm-slim; build Next.js;
-    start).
+0.8 Write `server/Dockerfile` (node:20-bookworm-slim; install pnpm; pnpm install
+    --frozen-lockfile --prod; copy tsconfig and src; CMD pnpm start) and
+    `web/Dockerfile` (node:20-bookworm-slim; install pnpm; build Next.js; start).
     Check: both images build.
 0.9 Write `Makefile` with: `build` (build agent image, then docker compose build),
     `up` (build agent image, then docker compose up), `down` (docker compose
@@ -203,42 +220,43 @@ Do not start a phase until the previous phase passed its final check.
     rbc-net if present).
     Check: `make build` builds all three images with no error.
 0.10 `git init`, add a `.gitignore`-respecting first commit "scaffold project".
-    Check: `git status` is clean, node_modules not tracked.
+    Check: `git status` is clean, node_modules not tracked, lockfiles tracked.
 
 ### Phase 1 - Agent streams frames
 
-1.1 `config.js`: read viewport, jpeg quality, port from env with defaults.
-1.2 `browser.js`: export `launch()` that starts puppeteer-core with
+1.1 `config.ts`: read viewport, jpeg quality, port from env with defaults; export
+    a typed config object.
+1.2 `browser.ts`: export `launch()` that starts puppeteer-core with
     executablePath /usr/bin/chromium, headless new, args --no-sandbox,
     --disable-dev-shm-usage, --disable-gpu, window size = viewport; open one
     page; setViewport; return { browser, page }.
-1.3 `screencast.js`: export `start(page, onFrame)` that opens a CDP session, calls
+1.3 `screencast.ts`: export `start(page, onFrame)` that opens a CDP session, calls
     Page.startScreencast (jpeg, quality, maxWidth/Height = viewport), and on each
     Page.screencastFrame calls onFrame(buffer) then Page.screencastFrameAck with
     the frame sessionId. Export `stop()`. Acking every frame is required or the
     stream stalls.
-1.4 `server.js`: a ws server on AGENT_PORT. On first client connect, launch the
+1.4 `server.ts`: a ws server on AGENT_PORT. On first client connect, launch the
     browser, send a `ready` control message, start the screencast and forward
     each frame as a binary message. On client close, stop the screencast and
     close the browser.
-1.5 `index.js`: wire config + server, start listening, log the port.
+1.5 `index.ts`: wire config + server, start listening, log the port.
 1.6 Build and run the agent container directly with a published port for testing:
     `docker run --rm -p 8080:8080 rbc-browser-agent:latest`.
     Check: it starts without crashing.
-1.7 Write a throwaway host script `scratch/frames.js` (node + ws) that connects,
+1.7 Write a throwaway host script `scratch/frames.ts` (run with tsx) that connects,
     saves the first 20 binary frames to `scratch/out/*.jpg`, then exits.
     Check: the files open as valid JPEGs of a blank page. Delete scratch/ after.
 1.8 Commit "agent: stream screencast frames over websocket".
 
 ### Phase 2 - Agent input
 
-2.1 `input.js`: export `dispatch(page, msg)` handling each control type:
+2.1 `input.ts`: export `dispatch(page, msg)` handling each control type:
     mouse via page.mouse.move/down/up with button and clickCount; wheel via
     page.mouse.wheel; key via page.keyboard.down/up and sendCharacter when text
     is present; navigate via page.goto wrapped in try/catch.
 2.2 Map the common special keys (Enter, Backspace, Tab, arrows, Escape) from
     KeyboardEvent.key to puppeteer key names.
-2.3 In `server.js`, parse text messages as JSON and route them to dispatch. On
+2.3 In `server.ts`, parse text messages as JSON and route them to dispatch. On
     framenavigated, send a `url` control message. On navigate failure, send an
     `error` control message.
 2.4 Extend the scratch script to send a navigate to a search engine, type a
@@ -248,20 +266,20 @@ Do not start a phase until the previous phase passed its final check.
 
 ### Phase 3 - Orchestrator lifecycle
 
-3.1 `config.js`: ports, AGENT_IMAGE, NETWORK_NAME, teardown grace ms.
-3.2 `docker/manager.js`: `ensureNetwork()` creates rbc-net if missing (idempotent).
+3.1 `config.ts`: ports, AGENT_IMAGE, NETWORK_NAME, teardown grace ms.
+3.2 `docker/manager.ts`: `ensureNetwork()` creates rbc-net if missing (idempotent).
 3.3 `manager.create(id)`: createContainer with AGENT_IMAGE, attach to rbc-net,
     name rbc-browser-<id>, label rbc.session=<id>, memory limit set, /dev/shm
     sized via Tmpfs, no host port bindings; start it; return { name }.
 3.4 `manager.destroy(id)`: stop with a short timeout then remove force; ignore
     not-found.
 3.5 `manager.reap()`: list containers by label rbc.session and remove them.
-3.6 `sessions/store.js`: a Map id -> { containerId, name, createdAt } with
+3.6 `sessions/store.ts`: a Map id -> { containerId, name, createdAt } with
     add/get/remove/list.
-3.7 `routes/sessions.js`: POST creates (nanoid id, manager.create, store.add,
+3.7 `routes/sessions.ts`: POST creates (nanoid id, manager.create, store.add,
     return id and agent host name); DELETE destroys and removes from store; GET
     lists.
-3.8 `index.js`: express with cors for the web origin; mount routes; on boot call
+3.8 `index.ts`: express with cors for the web origin; mount routes; on boot call
     reap() then ensureNetwork(); install SIGTERM and SIGINT handlers that destroy
     all stored sessions before exit.
 3.9 Run the server locally against host Docker.
@@ -272,7 +290,7 @@ Do not start a phase until the previous phase passed its final check.
 
 ### Phase 4 - Orchestrator WS proxy
 
-4.1 `ws/proxy.js`: on HTTP upgrade for /ws, read the session id from the query;
+4.1 `ws/proxy.ts`: on HTTP upgrade for /ws, read the session id from the query;
     reject unknown ids with a clean close.
 4.2 Connect to the agent at ws://rbc-browser-<id>:AGENT_PORT with retry and
     backoff, since the container needs a moment to boot.
@@ -281,7 +299,7 @@ Do not start a phase until the previous phase passed its final check.
 4.4 On UI disconnect, close the agent socket and schedule manager.destroy after
     the grace period; cancel the teardown if a new UI socket attaches to the same
     session first.
-4.5 Wire the upgrade handler in `index.js`.
+4.5 Wire the upgrade handler in `index.ts`.
 4.6 Extend the scratch client to hit the server (not the agent): create a
     session, open the proxy WS, receive frames, send a navigate.
     Check: frames arrive end to end through the server; after disconnect the
@@ -339,7 +357,8 @@ The code must read like one engineer wrote it on purpose, not generated filler.
   non-obvious decision needs justifying (for example, why every screencast frame
   must be acked).
 - Names carry the meaning so comments are unnecessary. Functions do one thing.
-- One module system per package, consistent imports and quotes, Prettier defaults
+- TypeScript strict mode on; no `any` unless an external type genuinely forces it,
+  and then narrow it immediately. Consistent imports and quotes, Prettier defaults
   and ESLint run before each commit.
 - No dead dependencies, unused exports, or leftover scaffolding.
 - Error handling is explicit and surfaced, never an empty catch.

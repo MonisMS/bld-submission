@@ -4,3 +4,8 @@ node_modules
 build
 dist
 *.log
+/.claude
+ROADMAP.md
+web/AGENTS.md
+web/CLAUDE.md
+.DS_Store

@@ -8,11 +8,14 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 
 ENV PUPPETEER_SKIP_DOWNLOAD=true
 
+RUN npm install -g pnpm
+
 WORKDIR /app
 
-COPY package.json ./
-RUN npm install --omit=dev
+COPY package.json pnpm-lock.yaml ./
+RUN pnpm install --frozen-lockfile --prod
 
+COPY tsconfig.json ./
 COPY src ./src
 
-CMD ["node", "src/index.js"]
+CMD ["pnpm", "start"]

@@ -1,10 +1,13 @@
 FROM node:20-bookworm-slim
 
+RUN npm install -g pnpm
+
 WORKDIR /app
 
-COPY package.json ./
-RUN npm install --omit=dev
+COPY package.json pnpm-lock.yaml ./
+RUN pnpm install --frozen-lockfile --prod
 
+COPY tsconfig.json ./
 COPY src ./src
 
-CMD ["node", "src/index.js"]
+CMD ["pnpm", "start"]
