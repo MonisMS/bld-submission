@@ -1,0 +1,37 @@
+services:
+  server:
+    build:
+      context: ./server
+    image: rbc-server:latest
+    ports:
+      - "${SERVER_PORT:-4000}:4000"
+    environment:
+      - SERVER_PORT=4000
+      - AGENT_PORT=${AGENT_PORT:-8080}
+      - AGENT_IMAGE=${AGENT_IMAGE:-rbc-browser-agent:latest}
+      - NETWORK_NAME=${NETWORK_NAME:-rbc-net}
+      - WEB_ORIGIN=http://localhost:${WEB_PORT:-3000}
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+    networks:
+      - rbc-net
+    restart: unless-stopped
+
+  web:
+    build:
+      context: ./web
+    image: rbc-web:latest
+    ports:
+      - "${WEB_PORT:-3000}:3000"
+    environment:
+      - NEXT_PUBLIC_SERVER_URL=http://localhost:${SERVER_PORT:-4000}
+    depends_on:
+      - server
+    networks:
+      - rbc-net
+    restart: unless-stopped
+
+networks:
+  rbc-net:
+    name: ${NETWORK_NAME:-rbc-net}
+    driver: bridge

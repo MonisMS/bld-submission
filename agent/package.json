@@ -1,0 +1,13 @@
+{
+  "name": "rbc-agent",
+  "version": "1.0.0",
+  "description": "Browser agent: streams headless Chromium frames over WebSocket",
+  "main": "src/index.js",
+  "scripts": {
+    "start": "node src/index.js"
+  },
+  "dependencies": {
+    "puppeteer-core": "^22.0.0",
+    "ws": "^8.16.0"
+  }
+}
