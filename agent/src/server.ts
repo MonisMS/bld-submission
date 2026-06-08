@@ -1,6 +1,8 @@
 import { WebSocketServer, type WebSocket } from 'ws';
+import { type Frame } from 'puppeteer-core';
 import { launch } from './browser.js';
 import { start, stop } from './screencast.js';
+import { dispatch, type InputMsg } from './input.js';
 import config from './config.js';
 
 export function createServer(): WebSocketServer {
@@ -8,6 +10,12 @@ export function createServer(): WebSocketServer {
 
   wss.on('connection', async (ws: WebSocket) => {
     let cleanup: (() => Promise<void>) | null = null;
+
+    const sendControl = (msg: object) => {
+      if (ws.readyState === ws.OPEN) {
+        ws.send(JSON.stringify(msg));
+      }
+    };
 
     try {
       const { browser, page } = await launch();
@@ -17,16 +25,37 @@ export function createServer(): WebSocketServer {
         await browser.close().catch(() => {});
       };
 
-      ws.send(JSON.stringify({ type: 'ready', viewport: config.viewport }));
+      page.on('framenavigated', (frame: Frame) => {
+        if (frame === page.mainFrame()) {
+          sendControl({ type: 'url', value: frame.url() });
+        }
+      });
+
+      sendControl({ type: 'ready', viewport: config.viewport });
 
       await start(page, (frame) => {
         if (ws.readyState === ws.OPEN) {
           ws.send(frame);
         }
       });
+
+      ws.on('message', async (data, isBinary) => {
+        if (isBinary) return;
+        try {
+          const msg = JSON.parse(data.toString()) as InputMsg;
+          await dispatch(page, msg).catch((err: unknown) => {
+            if (msg.type === 'navigate') {
+              const message = err instanceof Error ? err.message : String(err);
+              sendControl({ type: 'error', message });
+            }
+          });
+        } catch {
+          // ignore malformed messages
+        }
+      });
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err);
-      ws.send(JSON.stringify({ type: 'error', message }));
+      sendControl({ type: 'error', message });
       ws.close();
     }
 
