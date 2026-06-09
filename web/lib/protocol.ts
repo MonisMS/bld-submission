@@ -43,5 +43,18 @@ export type NavigateMessage = {
   url: string;
 };
 
-export type AgentMessage = ReadyMessage | UrlMessage | ErrorMessage;
-export type ClientMessage = MouseMessage | WheelMessage | KeyMessage | NavigateMessage;
+export type NavigateBackMessage = {
+  type: 'navigate-back';
+};
+
+export type NavigateForwardMessage = {
+  type: 'navigate-forward';
+};
+
+export type TitleMessage = {
+  type: 'title';
+  value: string;
+};
+
+export type AgentMessage = ReadyMessage | UrlMessage | ErrorMessage | TitleMessage;
+export type ClientMessage = MouseMessage | WheelMessage | KeyMessage | NavigateMessage | NavigateBackMessage | NavigateForwardMessage;

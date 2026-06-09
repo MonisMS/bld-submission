@@ -4,30 +4,64 @@ import { Loader2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import type { SessionState } from '@/lib/session';
 
-const META: Record<
-  SessionState,
-  { label: string; dot: string; text: string; spin?: boolean; pulse?: boolean }
-> = {
-  idle: { label: 'Idle', dot: 'bg-zinc-500', text: 'text-zinc-400' },
-  starting: { label: 'Connecting', dot: 'bg-amber-400', text: 'text-amber-400', spin: true },
-  live: { label: 'Live', dot: 'bg-emerald-400', text: 'text-emerald-400', pulse: true },
-  stopping: { label: 'Stopping', dot: 'bg-amber-400', text: 'text-amber-400', spin: true },
-  error: { label: 'Error', dot: 'bg-red-500', text: 'text-red-400' },
+type Meta = {
+  label: string;
+  wrap: string;
+  dot?: string;
+  text: string;
+  spin?: boolean;
+  pulse?: boolean;
+};
+
+const META: Record<SessionState, Meta> = {
+  idle:     {
+    label: 'Idle',
+    wrap: 'border-white/10 bg-white/5',
+    dot:  'bg-zinc-500',
+    text: 'text-zinc-400',
+  },
+  starting: {
+    label: 'Connecting',
+    wrap: 'border-amber-400/30 bg-amber-400/10',
+    text: 'text-amber-300',
+    spin: true,
+  },
+  live: {
+    label: 'Live',
+    wrap: 'border-emerald-500/35 bg-emerald-500/12 shadow-[0_0_12px_oklch(0.72_0.19_162_/_22%)]',
+    dot:  'bg-emerald-400',
+    text: 'text-emerald-300 font-semibold',
+    pulse: true,
+  },
+  stopping: {
+    label: 'Stopping',
+    wrap: 'border-amber-400/30 bg-amber-400/10',
+    text: 'text-amber-300',
+    spin: true,
+  },
+  error: {
+    label: 'Error',
+    wrap: 'border-red-400/30 bg-red-400/10',
+    dot:  'bg-red-400',
+    text: 'text-red-300',
+  },
 };
 
 export default function StatusBadge({ state }: { state: SessionState }) {
-  const meta = META[state];
-
+  const m = META[state];
   return (
-    <div className="flex items-center gap-2 rounded-md border border-border bg-card/60 px-3 py-1.5 text-xs font-medium">
-      {meta.spin ? (
-        <Loader2 className={cn('size-3 animate-spin', meta.text)} />
-      ) : (
-        <span
-          className={cn('size-2 rounded-full', meta.dot, meta.pulse && 'animate-status-pulse')}
-        />
+    <div
+      className={cn(
+        'flex items-center gap-1.5 rounded-full border px-3 py-1 text-xs font-medium transition-all duration-300',
+        m.wrap,
+        state === 'live' && 'animate-glow-pulse',
       )}
-      <span className={cn('tabular-nums', meta.text)}>{meta.label}</span>
+    >
+      {m.spin
+        ? <Loader2 className={cn('size-3 animate-spin', m.text)} />
+        : <span className={cn('size-1.5 rounded-full', m.dot, m.pulse && 'animate-status-pulse')} />
+      }
+      <span className={cn(m.text)}>{m.label}</span>
     </div>
   );
 }

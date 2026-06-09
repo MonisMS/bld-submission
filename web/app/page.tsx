@@ -31,6 +31,12 @@ export default function Home() {
     }
   }, [session.state, session.error]);
 
+  useEffect(() => {
+    document.title = session.title
+      ? `${session.title} — Remote Browser`
+      : 'Remote Browser Control';
+  }, [session.title]);
+
   return (
     <main ref={containerRef} className="flex h-screen flex-col bg-background">
       <Toolbar session={session} fullscreen={fullscreen} onToggleFullscreen={toggleFullscreen} />

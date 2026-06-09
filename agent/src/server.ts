@@ -31,6 +31,13 @@ export function createServer(): WebSocketServer {
         }
       });
 
+      page.on('load', async () => {
+        try {
+          const title = await page.title();
+          sendControl({ type: 'title', value: title });
+        } catch {}
+      });
+
       sendControl({ type: 'ready', viewport: config.viewport });
 
       await start(page, (frame) => {

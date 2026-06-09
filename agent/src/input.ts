@@ -30,7 +30,15 @@ export type NavigateMsg = {
   url: string;
 };
 
-export type InputMsg = MouseMsg | WheelMsg | KeyMsg | NavigateMsg;
+export type NavigateBackMsg = {
+  type: 'navigate-back';
+};
+
+export type NavigateForwardMsg = {
+  type: 'navigate-forward';
+};
+
+export type InputMsg = MouseMsg | WheelMsg | KeyMsg | NavigateMsg | NavigateBackMsg | NavigateForwardMsg;
 
 const KEY_MAP: Record<string, string> = {
   ' ': 'Space',
@@ -90,6 +98,14 @@ export async function dispatch(page: Page, msg: InputMsg): Promise<void> {
 
     case 'navigate':
       await page.goto(msg.url, { waitUntil: 'domcontentloaded', timeout: 30000 });
+      break;
+
+    case 'navigate-back':
+      await page.goBack({ waitUntil: 'domcontentloaded', timeout: 30000 });
+      break;
+
+    case 'navigate-forward':
+      await page.goForward({ waitUntil: 'domcontentloaded', timeout: 30000 });
       break;
   }
 }

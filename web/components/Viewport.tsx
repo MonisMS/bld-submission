@@ -13,6 +13,11 @@ export default function Viewport({ session }: { session: SessionHook }) {
   const isLive = session.state === 'live';
 
   useEffect(() => {
+    session.registerCanvas(canvasRef.current);
+    return () => session.registerCanvas(null);
+  }, [session.registerCanvas]);
+
+  useEffect(() => {
     session.onFrame((bitmap) => {
       const canvas = canvasRef.current;
       if (!canvas) return;
@@ -75,27 +80,40 @@ export default function Viewport({ session }: { session: SessionHook }) {
   }
 
   return (
-    <div className="relative flex flex-1 items-center justify-center overflow-hidden bg-black">
-      <canvas
-        ref={canvasRef}
-        width={VIEWPORT_WIDTH}
-        height={VIEWPORT_HEIGHT}
-        tabIndex={0}
-        onMouseMove={isLive ? onMouseMove : undefined}
-        onMouseDown={isLive ? onMouseDown : undefined}
-        onMouseUp={isLive ? onMouseUp : undefined}
-        onWheel={isLive ? onWheel : undefined}
-        onKeyDown={isLive ? onKeyDown : undefined}
-        onKeyUp={isLive ? onKeyUp : undefined}
-        onContextMenu={(e) => e.preventDefault()}
-        className="block h-auto max-h-full w-auto max-w-full outline-none"
-        style={{ cursor: isLive ? 'crosshair' : 'default', display: isLive ? 'block' : 'none' }}
-      />
+    <div className="relative flex flex-1 items-center justify-center overflow-hidden bg-[oklch(0.07_0.012_255)]">
+      {isLive && (
+        <div className="shadow-[0_0_0_1px_oklch(1_0_0/8%),0_8px_48px_oklch(0_0_0/65%)] rounded-sm overflow-hidden animate-fade-in">
+          <canvas
+            ref={canvasRef}
+            width={VIEWPORT_WIDTH}
+            height={VIEWPORT_HEIGHT}
+            tabIndex={0}
+            onMouseMove={onMouseMove}
+            onMouseDown={onMouseDown}
+            onMouseUp={onMouseUp}
+            onWheel={onWheel}
+            onKeyDown={onKeyDown}
+            onKeyUp={onKeyUp}
+            onContextMenu={(e) => e.preventDefault()}
+            className="block h-auto max-h-full w-auto max-w-full outline-none"
+            style={{ cursor: 'crosshair', display: 'block' }}
+          />
+        </div>
+      )}
 
       {!isLive && (
-        <div className="absolute inset-0">
-          <Landing starting={session.state === 'starting'} />
-        </div>
+        <>
+          {/* hidden canvas kept mounted so registerCanvas ref stays valid */}
+          <canvas ref={canvasRef} width={VIEWPORT_WIDTH} height={VIEWPORT_HEIGHT} className="hidden" />
+          <div className="absolute inset-0">
+            <Landing
+              starting={session.state === 'starting'}
+              error={session.state === 'error' ? session.error : null}
+              onStart={session.start}
+              onRetry={session.start}
+            />
+          </div>
+        </>
       )}
 
       {isLive && <StatsOverlay session={session} />}

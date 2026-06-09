@@ -54,6 +54,11 @@ export function openSessionSocket(
     }
   };
 
+  ws.onerror = () => {
+    clearInterval(statsTimer);
+    onControl({ type: 'error', message: 'WebSocket connection failed' });
+  };
+
   ws.onclose = () => {
     clearInterval(statsTimer);
   };

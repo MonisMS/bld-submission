@@ -11,7 +11,7 @@ function format(ms: number): string {
 }
 
 export default function SessionTimer({ startedAt }: { startedAt: number }) {
-  const [now, setNow] = useState(() => Date.now());
+  const [now, setNow] = useState(startedAt);
 
   useEffect(() => {
     const timer = setInterval(() => setNow(Date.now()), 1000);
@@ -19,9 +19,9 @@ export default function SessionTimer({ startedAt }: { startedAt: number }) {
   }, []);
 
   return (
-    <div className="flex items-center gap-1.5 font-mono text-xs tabular-nums text-zinc-400">
-      <Clock className="size-3.5" />
-      {format(Math.max(0, now - startedAt))}
+    <div className="flex items-center gap-1.5 font-mono text-xs tabular-nums">
+      <Clock className="size-3 text-blue-400/65" />
+      <span className="text-white/50">{format(Math.max(0, now - startedAt))}</span>
     </div>
   );
 }
