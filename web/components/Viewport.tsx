@@ -1,17 +1,16 @@
 'use client';
 
 import { useEffect, useRef } from 'react';
-import type { SessionHook } from '../lib/session';
+import StatsOverlay from './StatsOverlay';
+import Landing from './Landing';
+import type { SessionHook } from '@/lib/session';
 
 const VIEWPORT_WIDTH = 1280;
 const VIEWPORT_HEIGHT = 720;
 
-interface Props {
-  session: SessionHook;
-}
-
-export default function Viewport({ session }: Props) {
+export default function Viewport({ session }: { session: SessionHook }) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const isLive = session.state === 'live';
 
   useEffect(() => {
     session.onFrame((bitmap) => {
@@ -22,7 +21,7 @@ export default function Viewport({ session }: Props) {
       ctx.drawImage(bitmap, 0, 0);
       bitmap.close();
     });
-  }, [session]);
+  }, [session.onFrame]);
 
   function toViewport(clientX: number, clientY: number): { x: number; y: number } {
     const canvas = canvasRef.current!;
@@ -75,10 +74,8 @@ export default function Viewport({ session }: Props) {
     session.send({ type: 'key', action: 'up', key: e.key, code: e.code, text: '' });
   }
 
-  const isLive = session.state === 'live';
-
   return (
-    <div className="viewport-wrapper">
+    <div className="relative flex flex-1 items-center justify-center overflow-hidden bg-black">
       <canvas
         ref={canvasRef}
         width={VIEWPORT_WIDTH}
@@ -91,8 +88,17 @@ export default function Viewport({ session }: Props) {
         onKeyDown={isLive ? onKeyDown : undefined}
         onKeyUp={isLive ? onKeyUp : undefined}
         onContextMenu={(e) => e.preventDefault()}
-        style={{ outline: 'none', cursor: isLive ? 'crosshair' : 'default' }}
+        className="block h-auto max-h-full w-auto max-w-full outline-none"
+        style={{ cursor: isLive ? 'crosshair' : 'default', display: isLive ? 'block' : 'none' }}
       />
+
+      {!isLive && (
+        <div className="absolute inset-0">
+          <Landing starting={session.state === 'starting'} />
+        </div>
+      )}
+
+      {isLive && <StatsOverlay session={session} />}
     </div>
   );
 }
